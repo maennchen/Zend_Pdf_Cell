@@ -17,6 +17,18 @@
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 
+ /* Changes:
+    2008-12-02  Dominik Deobald  <dominik DOT deobald AT interdose DOT com>
+    - Applied some changes to make it at least a little bit more UTF-8 compatible.
+	  Umlauts were missing when a line had to be wordwrapped. 
+
+    2009-01-12  Dominik Deobald  <dominik DOT deobald AT interdose DOT com>
+	- Fixed bug in WordWrap where last word would just fit into a row, 
+	  but the following space would not. Resulted in infinite loop.
+	- Cleaned up my previous changes concerning char encodings. "Sections" 
+	  contain encoding information, so no additional parameter is required.
+ */
+
 /** Zend_Pdf_Exception */
 require_once 'Zend/Pdf/Exception.php';
 
@@ -128,9 +140,8 @@ class Zend_Pdf_Cell {
 	 * @param int $width Width of the cell.  Provide 0 for auto-width.
 	 * @param int $height Height of the cell.  Provide 0 for auto-height.
 	 */
-	public function __construct($page,$position=Zend_Pdf_Cell::POSITION_LEFT,$width=0,$height=0)
-	{
-        $this->setPage($page);
+	public function __construct($page,$position=Zend_Pdf_Cell::POSITION_LEFT,$width=0,$height=0) {
+		$this->setPage($page);
 		$this->_lineNumber=0;
 		$this->_section=0;
 		$this->_font=$page->getFont();
@@ -171,15 +182,22 @@ class Zend_Pdf_Cell {
 		if ($lineWidth+$section['width'] > $maxWidth) {
 			//section of text is greater than our box's diminsions
 			$splitSection=explode(' ',$section['text']);
-			$maxTextSection=$this->_makeTextSection(array_shift($splitSection));
+			$maxTextSection=$this->_makeTextSection(array_shift($splitSection), $section['encoding']);
+
+			$spaceWidth=$this->_getTextWidth($this->_makeTextSection(' '));
+
 			while($maxTextSection['text']!=null && $lineWidth + $maxTextSection['width'] < $maxWidth) {
-				$this->addText($maxTextSection['text'].' ');
+				$this->addText($maxTextSection['text'], null, 0, $section['encoding']);
 				$lineWidth=$this->_text[$this->_lineNumber]['width'];
-				$maxTextSection=$this->_makeTextSection(array_shift($splitSection));
+				if ($lineWidth + $spaceWidth < $maxWidth) {
+					$this->addText(' ');
+					$lineWidth += $spaceWidth;
+				}
+				$maxTextSection=$this->_makeTextSection(array_shift($splitSection), $section['encoding']);
 			}
 			$this->newLine();
 			$restOfText=implode(' ',$splitSection);
-			$this->addText($maxTextSection['text'].' '.$restOfText);
+			$this->addText($maxTextSection['text'].' '.$restOfText, null, 0, $section['encoding']);
 			return true;
 		}
 		return false;
@@ -191,7 +209,7 @@ class Zend_Pdf_Cell {
 	 * @param string $text String of text to turn into a section.
 	 * @return array A text section array.
 	 */
-	private function _makeTextSection($text,$charEncoding='') {
+	private function _makeTextSection($text, $charEncoding='ISO-8859-1') {
 		$section=array();
 		$section['text']=$text;
 		$section['encoding']=$charEncoding;
@@ -217,7 +235,7 @@ class Zend_Pdf_Cell {
 	 * @param string $charEncoding (Optional) Encoding of this particular section of text.
 	 *  Defaults to current locale.
 	 */
-	public function addText($text, $alignment=null, $offset=0, $charEncoding='') {
+	public function addText($text, $alignment=null, $offset=0, $charEncoding='ISO-8859-1') {
 		//Set the alignment
 		if ($alignment!==null) {
 			$this->_text[$this->_lineNumber]['alignment']=$alignment;
@@ -296,7 +314,7 @@ class Zend_Pdf_Cell {
 		$this->_lineNumber++;
 		$this->_text[$this->_lineNumber]=array();
 		$this->_text[$this->_lineNumber][0]['text']='';
-		$this->_text[$this->_lineNumber][0]['encoding']='';
+		$this->_text[$this->_lineNumber][0]['encoding']='ISO-8859-1';
 		$this->_text[$this->_lineNumber][0]['font']=$this->_font;
 		$this->_text[$this->_lineNumber][0]['fontSize']=$this->_fontSize;
 		$this->_text[$this->_lineNumber][0]['width']=0;
@@ -317,10 +335,11 @@ class Zend_Pdf_Cell {
 	 * @return int Width of cell, in pixels, without the border.
 	 */
 	public function getWidth() {
-		if(0 == $this->_width)
-                    return $this->_autoWidth;
-                else
-                    return $this->_width;
+		if ($this->isAutoWidth()) {
+			return $this->_autoWidth;
+		} else {
+			return $this->_width;
+		}
 	}
 	
 	/**
@@ -329,9 +348,12 @@ class Zend_Pdf_Cell {
 	 * @return int Width of cell, in pixels, without the border.
 	 */
 	public function getHeight() {
-		return $this->_height;
+		if ($this->isAutoWidth()) {
+			return $this->_autoHeight;
+		} else {
+			return $this->_height;
+		}
 	}
-	
 	public function getPosition() {
 		return $this->_position;
 	}
@@ -602,6 +624,11 @@ class Zend_Pdf_Cell {
 	private function _getTextWidth($textSection) {
     	//make into a character array
     	$charArray=array();
+
+		if (strlen($textSection['encoding']) > 0) {
+			$textSection['text'] = iconv($textSection['encoding'], 'ISO-8859-1', $textSection['text']);
+		}
+
     	for ($x=0;$x<strlen($textSection['text']);$x++) {
 			$charArray[]=ord(substr($textSection['text'],$x,1));
 		}
