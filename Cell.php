@@ -535,7 +535,7 @@ class Zend_Pdf_Cell {
 		if ($this->isAutoWidth()) {
 			$this->_width=$this->_autoWidth;
 		}
-		
+
 		//positions of the cell's box
 
 		//initalize the diminsions to defaults
@@ -615,29 +615,30 @@ class Zend_Pdf_Cell {
 	}
 	
 	/**
-	 * Returns the width of the text
+	 * Returns the total width in points of the string using the specified font and
+	 * size.
 	 *
+	 * This is not the most efficient way to perform this calculation. I'm
+	 * concentrating optimization efforts on the upcoming layout manager class.
+	 * Similar calculations exist inside the layout manager class, but widths are
+	 * generally calculated only after determining line fragments.
+	 * 
+	 * @link http://devzone.zend.com/article/2525-Zend_Pdf-tutorial#comments-2535 
+	 * @link http://stackoverflow.com/questions/1283555/zend-pdf-calculating-length-of-text-string-in-current-font-for-line-wrapping
 	 * @param array $textSection A section of text that has the font, character encoding and text.
-	 * @return integer Number of PDF units wide the text should be.
-	 * @todo Make work for non ASCII characters.
+	 * @return float Number of PDF units wide the text should be.
 	 */
 	private function _getTextWidth($textSection) {
-    	//make into a character array
-    	$charArray=array();
-
-		if (strlen($textSection['encoding']) > 0) {
-			$textSection['text'] = iconv($textSection['encoding'], 'ISO-8859-1', $textSection['text']);
+		$drawingString = iconv($textSection['encoding'], 'UTF-16BE//IGNORE', $textSection['text']);
+		$characters = array();
+		for ($i = 0; $i < strlen($drawingString); $i++) {
+			$characters[] = (ord($drawingString[$i++]) << 8 ) | ord($drawingString[$i]);
 		}
+		$glyphs = $textSection['font']->glyphNumbersForCharacters($characters);
+		$widths = $textSection['font']->widthsForGlyphs($glyphs);
+		$stringWidth = (array_sum($widths) / $textSection['font']->getUnitsPerEm()) * $textSection['fontSize'];
 
-    	for ($x=0;$x<strlen($textSection['text']);$x++) {
-			$charArray[]=ord(substr($textSection['text'],$x,1));
-		}
-
-    	$charArray=$textSection['font']->glyphNumbersForCharacters($charArray);
-     	//get the lengths
- 		$lengths=$textSection['font']->widthsForGlyphs($charArray);
- 		$fontGlyphWidth=array_sum($lengths);
-
-       	return 	$fontGlyphWidth/$this->_font->getUnitsPerEm()*$this->_fontSize;
-    }
+		echo $drawingString, ' - ', $stringWidth, '<br>';
+		return $stringWidth;
+	}
 }
