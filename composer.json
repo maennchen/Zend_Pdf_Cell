@@ -1,0 +1,27 @@
+{
+	"name": "maennchen/zendframework-pdf-cell",
+	"description": "Re-Add the deleted Class Zend_Pdf_Cell",
+	"type": "library",
+	"keywords": [
+		"framweork",
+		"Zend_Pdf_Cell",
+		"Zend",
+		"PDF",
+		"Cell",
+		"zf1"
+	],
+	"homepage": "https://github.com/maennchen/Zend_Pdf_Cell",
+	"license": "BSD-3-Clause",
+	"require": {
+		"php": ">=5.3.3",
+		"zendframework/zendframework1": "1.12.0"
+	},
+	"autoload": {
+		"psr-0": {
+			"Zend_Pdf_": "."
+		}
+	},
+	"include-path": [
+		"."
+	]
+}
