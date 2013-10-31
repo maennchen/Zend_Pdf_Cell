@@ -638,7 +638,6 @@ class Zend_Pdf_Cell {
 		$widths = $textSection['font']->widthsForGlyphs($glyphs);
 		$stringWidth = (array_sum($widths) / $textSection['font']->getUnitsPerEm()) * $textSection['fontSize'];
 
-		echo $drawingString, ' - ', $stringWidth, '<br>';
 		return $stringWidth;
 	}
 }
