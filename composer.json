@@ -14,7 +14,7 @@
 	"license": "BSD-3-Clause",
 	"require": {
 		"php": ">=5.3.3",
-		"zendframework/zendframework1": "*"
+		"zendframework/ZendPdf": "2.x"
 	},
 	"autoload": {
 		"classmap": [ "." ]
